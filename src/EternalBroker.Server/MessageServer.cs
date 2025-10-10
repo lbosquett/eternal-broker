@@ -7,33 +7,56 @@ namespace Broker.Server;
 public class MessageServer
 {
     private Task? _serverTask;
+    private CancellationTokenSource? _cts;
     private TcpListener? _listener;
 
-    public Task Run(CancellationToken cancellationToken)
+    public Task Run(MessageServerOptions options, CancellationToken cancellationToken)
     {
         if (_serverTask != null)
             throw new InvalidOperationException("server already running");
+        _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _serverTask = ServerTask(options, cancellationToken);
 
-
-        return _serverTask = Task.Run(() => ServerTask(cancellationToken), cancellationToken);
+        return _serverTask;
     }
 
-    private void ServerTask(CancellationToken cancellationToken)
+    public async Task StopAsync()
     {
-        _listener = new TcpListener(IPAddress.Any, 24242);
+        if (_cts is null || _serverTask is null)
+            throw new InvalidOperationException("server already stopping or not started");
+
+        await _cts.CancelAsync();
+        _cts.Dispose();
+
+        try
+        {
+            await _serverTask;
+        }
+        catch (OperationCanceledException e)
+        {
+            /* ignore */
+        }
+    }
+
+    private async Task ServerTask(MessageServerOptions options, CancellationToken cancellationToken)
+    {
+        if (_cts is null) throw new InvalidOperationException("cancellation token not created");
+
+        _listener = new TcpListener(IPAddress.Any, options.Port);
         _listener.Start(200);
-        
+
         List<TcpClient> clients = new();
         while (!cancellationToken.IsCancellationRequested)
         {
-            TcpClient client = _listener.AcceptTcpClient();
+            TcpClient client = await _listener.AcceptTcpClientAsync(_cts.Token);
             NetworkStream stream = client.GetStream();
 
             byte[] messageHeader = new byte[8];
             byte[] messageBody = new byte[1024];
             while (client.Connected && !cancellationToken.IsCancellationRequested)
             {
-                int read = stream.Read(messageHeader, 0, 8);
+                int read = await stream.ReadAsync(messageHeader, 0, 8, _cts.Token);
+                if (read <= 8) throw new Exception("unexpected end of stream");
 
                 // simple dumb protocol
                 // 4 bytes for message type
@@ -48,7 +71,7 @@ public class MessageServer
                     client.Close();
                 }
 
-                read = stream.Read(messageBody, 0, messageLength);
+                read = await stream.ReadAsync(messageBody, 0, messageLength, _cts.Token);
                 if (read != messageLength) throw new InvalidOperationException("well...");
 
                 switch (messageType)

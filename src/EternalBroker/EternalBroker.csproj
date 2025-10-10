@@ -5,6 +5,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <RootNamespace>Broker</RootNamespace>
+        <LangVersion>default</LangVersion>
     </PropertyGroup>
 
 </Project>

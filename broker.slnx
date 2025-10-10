@@ -1,7 +1,10 @@
 ﻿<Solution>
   <Folder Name="/src/">
-    <Project Path="EternalBroker.Client\EternalBroker.Client.csproj" Type="Classic C#" />
-    <Project Path="EternalBroker.Server\EternalBroker.Server.csproj" Type="Classic C#" />
-    <Project Path="EternalBroker\EternalBroker.csproj" Type="Classic C#" />
+    <Project Path="src\EternalBroker.Client\EternalBroker.Client.csproj" Type="Classic C#" />
+    <Project Path="src\EternalBroker.Server\EternalBroker.Server.csproj" Type="Classic C#" />
+    <Project Path="src\EternalBroker\EternalBroker.csproj" Type="Classic C#" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test\EternalBroker.Test\EternalBroker.Test.csproj" Type="Classic C#" />
   </Folder>
 </Solution>
