@@ -7,6 +7,10 @@ static class Program
         // todo: args to options
 
         var server = new MessageServer();
-        await server.Run(MessageServerOptions.Default, CancellationToken.None);
+        server.Run(MessageServerOptions.Default, CancellationToken.None);
+
+        if (server.ServerTask == null) throw new InvalidOperationException("unable to start server");
+
+        await server.ServerTask;
     }
 }

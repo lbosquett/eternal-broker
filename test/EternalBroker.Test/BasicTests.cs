@@ -11,7 +11,7 @@ public class BasicTests
         CancellationTokenSource cts = new CancellationTokenSource();
 
         MessageServer server = new();
-        _ = server.Run(new MessageServerOptions() { Port = 7800 }, cts.Token);
+        server.Run(new MessageServerOptions() { Port = 7800 }, cts.Token);
         await server.StopAsync();
     }
 }

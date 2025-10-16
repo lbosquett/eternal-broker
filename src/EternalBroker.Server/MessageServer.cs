@@ -10,14 +10,14 @@ public class MessageServer
     private CancellationTokenSource? _cts;
     private TcpListener? _listener;
 
-    public Task Run(MessageServerOptions options, CancellationToken cancellationToken)
+    public Task? ServerTask => _serverTask;
+
+    public void Run(MessageServerOptions options, CancellationToken cancellationToken)
     {
         if (_serverTask != null)
             throw new InvalidOperationException("server already running");
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _serverTask = ServerTask(options, cancellationToken);
-
-        return _serverTask;
+        _serverTask = RunServerTask(options, cancellationToken);
     }
 
     public async Task StopAsync()
@@ -38,7 +38,7 @@ public class MessageServer
         }
     }
 
-    private async Task ServerTask(MessageServerOptions options, CancellationToken cancellationToken)
+    private async Task RunServerTask(MessageServerOptions options, CancellationToken cancellationToken)
     {
         if (_cts is null) throw new InvalidOperationException("cancellation token not created");
 
@@ -46,7 +46,7 @@ public class MessageServer
         _listener.Start(200);
 
         List<TcpClient> clients = new();
-        while (!cancellationToken.IsCancellationRequested)
+        while (!_cts.IsCancellationRequested)
         {
             TcpClient client = await _listener.AcceptTcpClientAsync(_cts.Token);
             NetworkStream stream = client.GetStream();
@@ -55,8 +55,12 @@ public class MessageServer
             byte[] messageBody = new byte[1024];
             while (client.Connected && !cancellationToken.IsCancellationRequested)
             {
-                int read = await stream.ReadAsync(messageHeader, 0, 8, _cts.Token);
-                if (read <= 8) throw new Exception("unexpected end of stream");
+                int headerRead = await stream.ReadAtLeastAsync(messageHeader, 8, throwOnEndOfStream: false, _cts.Token);
+                if (headerRead == 0)
+                {
+                    stream.Close();
+                    break;
+                }
 
                 // simple dumb protocol
                 // 4 bytes for message type
@@ -71,11 +75,22 @@ public class MessageServer
                     client.Close();
                 }
 
-                read = await stream.ReadAsync(messageBody, 0, messageLength, _cts.Token);
-                if (read != messageLength) throw new InvalidOperationException("well...");
+                if (messageLength > 0)
+                {
+                    int read = await stream.ReadAtLeastAsync(messageBody,
+                        messageLength,
+                        throwOnEndOfStream: false,
+                        _cts.Token);
+                    if (read != messageLength) throw new InvalidOperationException("well...");
+                }
 
                 switch (messageType)
                 {
+                    case MessageType.Ping:
+                        MessageBuilder builder = new() { MessageType = MessageType.Pong };
+                        ReadOnlyMemory<byte> pong = builder.Build();
+                        stream.Write(pong.Span);
+                        break;
                     case MessageType.Subscribe:
                         break;
                     case MessageType.Publish:
