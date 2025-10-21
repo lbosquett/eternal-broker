@@ -23,7 +23,17 @@ public class CommunicationTests
         ReadOnlyMemory<byte> serializedMessage = builder.Build();
 
         // send ping
-        stream.Write(serializedMessage.Span);
+        stream.Write(serializedMessage.Span.Slice(0, 1));
+        stream.Flush();
+        Thread.Sleep(100);
+
+        stream.Write(serializedMessage.Span.Slice(1, 1));
+        stream.Flush();
+        Thread.Sleep(100);
+
+        stream.Write(serializedMessage.Span.Slice(2));
+        stream.Flush();
+        Thread.Sleep(100);
 
         // wait for pong
         byte[] received = new byte[8];

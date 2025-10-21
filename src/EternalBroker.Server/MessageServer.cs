@@ -1,6 +1,8 @@
-﻿using System.Net;
+﻿using System.Buffers;
+using System.Collections.Concurrent;
+using System.Net;
 using System.Net.Sockets;
-using Broker.Protocol;
+using System.Threading.Channels;
 
 namespace Broker.Server;
 
@@ -9,6 +11,9 @@ public class MessageServer
     private Task? _serverTask;
     private CancellationTokenSource? _cts;
     private TcpListener? _listener;
+    private Channel<Message> _messageChannel = Channel.CreateBounded<Message>(32);
+
+    private readonly ConcurrentDictionary<Guid, MessageServerClient> _clients = new();
 
     public Task? ServerTask => _serverTask;
 
@@ -43,60 +48,18 @@ public class MessageServer
         if (_cts is null) throw new InvalidOperationException("cancellation token not created");
 
         _listener = new TcpListener(IPAddress.Any, options.Port);
-        _listener.Start(200);
+        _listener.Start(64);
 
-        List<TcpClient> clients = new();
+        // TODO: move to a event based method
         while (!_cts.IsCancellationRequested)
         {
-            TcpClient client = await _listener.AcceptTcpClientAsync(_cts.Token);
-            NetworkStream stream = client.GetStream();
+            Socket client = await _listener.AcceptSocketAsync(_cts.Token);
 
-            byte[] messageHeader = new byte[8];
-            byte[] messageBody = new byte[1024];
-            while (client.Connected && !cancellationToken.IsCancellationRequested)
-            {
-                int headerRead = await stream.ReadAtLeastAsync(messageHeader, 8, throwOnEndOfStream: false, _cts.Token);
-                if (headerRead == 0)
-                {
-                    stream.Close();
-                    break;
-                }
+            var clientKey = Guid.NewGuid();
+            var messageServerClient = new MessageServerClient(clientKey, client);
 
-                // simple dumb protocol
-                // 4 bytes for message type
-                // 4 bytes for message length
-                // ... the message
-                MessageType messageType = (MessageType)BitConverter.ToInt32(messageHeader);
-                int messageLength = BitConverter.ToInt32(messageHeader, 4);
-
-                // for now there is a limit, but why not let it exceed?
-                if (messageLength > messageBody.Length)
-                {
-                    client.Close();
-                }
-
-                if (messageLength > 0)
-                {
-                    int read = await stream.ReadAtLeastAsync(messageBody,
-                        messageLength,
-                        throwOnEndOfStream: false,
-                        _cts.Token);
-                    if (read != messageLength) throw new InvalidOperationException("well...");
-                }
-
-                switch (messageType)
-                {
-                    case MessageType.Ping:
-                        MessageBuilder builder = new() { MessageType = MessageType.Pong };
-                        ReadOnlyMemory<byte> pong = builder.Build();
-                        stream.Write(pong.Span);
-                        break;
-                    case MessageType.Subscribe:
-                        break;
-                    case MessageType.Publish:
-                        break;
-                }
-            }
+            _clients.TryAdd(clientKey, messageServerClient);
+            messageServerClient.ReceiveMessageLoop();
         }
     }
 }
