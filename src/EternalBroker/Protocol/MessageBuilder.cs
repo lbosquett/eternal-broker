@@ -8,9 +8,10 @@ public class MessageBuilder
 
     public ReadOnlyMemory<byte> Build()
     {
+        // todo: fix
         int messageLength = Message?.Payload.Length ?? 0;
 
-        byte[] serializedMessage = new byte[messageLength + 8];
+        byte[] serializedMessage = new byte[messageLength + 12];
         BitConverter.GetBytes((int)MessageType).CopyTo(serializedMessage, 0);
         BitConverter.GetBytes(messageLength).CopyTo(serializedMessage, 4);
 

@@ -1,3 +1,3 @@
 ﻿namespace Broker;
 
-public record Message(ReadOnlyMemory<byte> Payload);
+public record Message(string? Topic, ReadOnlyMemory<byte> Payload);

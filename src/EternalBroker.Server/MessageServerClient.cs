@@ -1,5 +1,6 @@
 ﻿using System.Buffers;
 using System.Net.Sockets;
+using System.Threading.Channels;
 
 namespace Broker.Server;
 
@@ -10,13 +11,19 @@ internal class MessageServerClient
     private readonly IMemoryOwner<byte> _memoryOwner;
     private readonly SocketAsyncEventArgs _eventArgs;
     private readonly MessageParser _parser;
+    private readonly Channel<Message> _messageChannel;
+    private readonly CancellationToken _cancellationToken;
 
-    internal MessageServerClient(Guid clientKey, Socket client)
+    internal MessageServerClient(Guid clientKey, Socket client, Channel<Message> messageChannel,
+        IMessageFactory messageFactory,
+        CancellationToken cancellationToken)
     {
         _clientKey = clientKey;
         _client = client;
         _memoryOwner = MemoryPool<byte>.Shared.Rent(8192);
-        _parser = new MessageParser();
+        _parser = new MessageParser(messageFactory);
+        _messageChannel = messageChannel;
+        _cancellationToken = cancellationToken;
 
         _eventArgs = new SocketAsyncEventArgs();
         _eventArgs.SetBuffer(_memoryOwner.Memory);
@@ -25,7 +32,7 @@ internal class MessageServerClient
 
     public void ReceiveMessageLoop()
     {
-        while (true)
+        while (!_cancellationToken.IsCancellationRequested)
         {
             bool async = _client.ReceiveAsync(_eventArgs);
             if (async) break;
@@ -48,12 +55,21 @@ internal class MessageServerClient
         {
             Memory<byte> buffer = _memoryOwner.Memory;
             int consumed = 0;
-            while (_parser.TryParseMessage(ref buffer, e.BytesTransferred, out Message message))
+            while (_parser.TryParseMessage(ref buffer, e.BytesTransferred, out Message? message))
             {
                 if (message == null) throw new InvalidOperationException("unexpected message to be null");
 
-                // todo: emit message
                 consumed += message.Payload.Length + 8;
+                bool messageSent = _messageChannel.Writer.TryWrite(message);
+
+                if (!messageSent)
+                {
+                    // todo: handle cases when server is handling messages slowly
+                    // - signal server to process messages?
+                    // - discard message?
+                    // - buffering?
+                    throw new NotImplementedException();
+                }
             }
 
             // compact

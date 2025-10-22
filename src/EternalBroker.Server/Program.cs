@@ -9,8 +9,8 @@ static class Program
         var server = new MessageServer();
         server.Run(MessageServerOptions.Default, CancellationToken.None);
 
-        if (server.ServerTask == null) throw new InvalidOperationException("unable to start server");
+        if (server.ListenerTask == null) throw new InvalidOperationException("unable to start server");
 
-        await server.ServerTask;
+        await server.ListenerTask;
     }
 }
