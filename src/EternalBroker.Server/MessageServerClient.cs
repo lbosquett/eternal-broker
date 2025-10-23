@@ -1,6 +1,7 @@
 ﻿using System.Buffers;
 using System.Net.Sockets;
 using System.Threading.Channels;
+using Broker.Protocol;
 
 namespace Broker.Server;
 
@@ -11,17 +12,16 @@ internal class MessageServerClient
     private readonly IMemoryOwner<byte> _memoryOwner;
     private readonly SocketAsyncEventArgs _eventArgs;
     private readonly MessageParser _parser;
-    private readonly Channel<Message> _messageChannel;
+    private readonly Channel<ProtocolMessage> _messageChannel;
     private readonly CancellationToken _cancellationToken;
 
-    internal MessageServerClient(Guid clientKey, Socket client, Channel<Message> messageChannel,
-        IMessageFactory messageFactory,
+    internal MessageServerClient(Guid clientKey, Socket client, Channel<ProtocolMessage> messageChannel,
         CancellationToken cancellationToken)
     {
         _clientKey = clientKey;
         _client = client;
         _memoryOwner = MemoryPool<byte>.Shared.Rent(8192);
-        _parser = new MessageParser(messageFactory);
+        _parser = new MessageParser();
         _messageChannel = messageChannel;
         _cancellationToken = cancellationToken;
 
@@ -55,7 +55,7 @@ internal class MessageServerClient
         {
             Memory<byte> buffer = _memoryOwner.Memory;
             int consumed = 0;
-            while (_parser.TryParseMessage(ref buffer, e.BytesTransferred, out Message? message))
+            while (_parser.TryParseMessage(ref buffer, _clientKey, e.BytesTransferred, out ProtocolMessage? message))
             {
                 if (message == null) throw new InvalidOperationException("unexpected message to be null");
 
