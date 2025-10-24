@@ -16,7 +16,7 @@ public class MessageSerializerTests
 
         // assert
         Assert.False(result.IsEmpty);
-        Assert.True(result is { Length: 8 });
+        Assert.True(result is { Length: 12 });
 
         int messageTypeResult = BitConverter.ToInt32(result.Span.ToArray(), 0);
         int messageLengthResult = BitConverter.ToInt32(result.Span.ToArray(), 4);
