@@ -3,17 +3,16 @@ using Xunit;
 
 namespace EternalBroker.Test;
 
-public class MessageBuilderTests
+public class MessageSerializerTests
 {
     [Fact]
     public void BuildPingMessage()
     {
         // setup
-        MessageBuilder builder = new MessageBuilder();
-        builder.MessageType = MessageType.Ping;
+        MessageSerializer serializer = new MessageSerializer();
 
         // act
-        ReadOnlyMemory<byte> result = builder.Build();
+        ReadOnlyMemory<byte> result = serializer.Serialize(new ProtocolMessage(Guid.Empty, MessageType.Ping, 0, ReadOnlyMemory<byte>.Empty));
 
         // assert
         Assert.False(result.IsEmpty);

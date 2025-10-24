@@ -18,9 +18,8 @@ public class CommunicationTests
         await client.ConnectAsync(IPAddress.Loopback, 7800);
         NetworkStream stream = client.GetStream();
 
-        MessageBuilder builder = new MessageBuilder();
-        builder.MessageType = MessageType.Ping;
-        ReadOnlyMemory<byte> serializedMessage = builder.Build();
+        MessageSerializer serializer = new MessageSerializer();
+        ReadOnlyMemory<byte> serializedMessage = serializer.Serialize(new ProtocolMessage(Guid.NewGuid(), MessageType.Ping, 0, ReadOnlyMemory<byte>.Empty));
 
         // send ping
         stream.Write(serializedMessage.Span.Slice(0, 1));
@@ -36,7 +35,7 @@ public class CommunicationTests
         Thread.Sleep(100);
 
         // wait for pong
-        byte[] received = new byte[8];
+        byte[] received = new byte[12];
         await stream.FlushAsync();
         int read = stream.Read(received, 0, received.Length);
 

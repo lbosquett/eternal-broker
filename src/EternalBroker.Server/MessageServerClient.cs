@@ -10,38 +10,49 @@ internal class MessageServerClient
     private readonly Guid _clientKey;
     private readonly Socket _client;
     private readonly IMemoryOwner<byte> _memoryOwner;
-    private readonly SocketAsyncEventArgs _eventArgs;
-    private readonly MessageParser _parser;
+    private readonly SocketAsyncEventArgs _receiveEventArgs;
+    private readonly MessageParser _parser = new();
+    private readonly MessageSerializer _serializer = new();
+    private readonly ManualResetEventSlim _canReceive = new ManualResetEventSlim();
     private readonly Channel<ProtocolMessage> _messageChannel;
     private readonly CancellationToken _cancellationToken;
 
-    internal MessageServerClient(Guid clientKey, Socket client, Channel<ProtocolMessage> messageChannel,
+    internal MessageServerClient(Guid clientKey, Socket client,
+        Channel<ProtocolMessage> messageChannel,
         CancellationToken cancellationToken)
     {
         _clientKey = clientKey;
         _client = client;
         _memoryOwner = MemoryPool<byte>.Shared.Rent(8192);
-        _parser = new MessageParser();
         _messageChannel = messageChannel;
         _cancellationToken = cancellationToken;
 
-        _eventArgs = new SocketAsyncEventArgs();
-        _eventArgs.SetBuffer(_memoryOwner.Memory);
-        _eventArgs.Completed += SocketCompletedEvent;
+        _receiveEventArgs = new SocketAsyncEventArgs();
+        _receiveEventArgs.SetBuffer(_memoryOwner.Memory);
+        _receiveEventArgs.Completed += SocketCompletedReceiveEvent;
     }
 
     public void ReceiveMessageLoop()
     {
-        while (!_cancellationToken.IsCancellationRequested)
-        {
-            bool async = _client.ReceiveAsync(_eventArgs);
-            if (async) break;
+        _canReceive.Set();
 
-            ReceiveMessage(_eventArgs);
+        while (!_cancellationToken.IsCancellationRequested
+               && _client.Connected)
+        {
+            _canReceive.Wait(_cancellationToken);
+
+            bool pending = _client.ReceiveAsync(_receiveEventArgs);
+            if (pending)
+            {
+                _canReceive.Reset();
+                continue;
+            }
+
+            ReceiveMessage(_receiveEventArgs);
         }
     }
 
-    private void SocketCompletedEvent(object? sender, SocketAsyncEventArgs e)
+    private void SocketCompletedReceiveEvent(object? sender, SocketAsyncEventArgs e)
     {
         if (e.LastOperation == SocketAsyncOperation.Receive)
         {
@@ -51,6 +62,14 @@ internal class MessageServerClient
 
     private void ReceiveMessage(SocketAsyncEventArgs e)
     {
+        if (e.BytesTransferred == 0 && e.SocketError == SocketError.Success)
+        {
+            if (_client.Connected)
+                _client.Shutdown(SocketShutdown.Both);
+            return;
+        }
+
+        Console.WriteLine($"received: {e.BytesTransferred} bytes");
         if (e.LastOperation == SocketAsyncOperation.Receive)
         {
             Memory<byte> buffer = _memoryOwner.Memory;
@@ -84,6 +103,11 @@ internal class MessageServerClient
 
             e.SetBuffer(buffer);
         }
-        ReceiveMessageLoop();
+        _canReceive.Set();
+    }
+
+    public async Task SendMessageAsync(ProtocolMessage pong)
+    {
+        await _client.SendAsync(_serializer.Serialize(pong), _cancellationToken);
     }
 }

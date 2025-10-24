@@ -42,7 +42,7 @@ public class MessageParser
 
         // we don't have enough data yet
         // 12 = version + topic + length 
-        if (messageLength + 8 > frame.Length)
+        if (messageLength + 12 > frame.Length)
         {
             buffer = buffer.Slice(endPosition);
             message = null;

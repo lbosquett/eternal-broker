@@ -4,6 +4,5 @@ public enum MessageType
 {
     None = 0,
     Ping,
-    Pong,
     Publish
 }

@@ -40,6 +40,19 @@ public class MessageServer
             await foreach (ProtocolMessage message in _messageChannel.Reader.ReadAllAsync(_cts.Token))
             {
                 // todo: implement
+                switch (message.MessageType)
+                {
+                    case MessageType.Ping:
+                        if (_clients.TryGetValue(message.Sender, out var client))
+                        {
+                            var pong = new ProtocolMessage(message.Sender, MessageType.Ping, 0,
+                                ReadOnlyMemory<byte>.Empty);
+                            await client.SendMessageAsync(pong);
+                        }
+                        break;
+                    case MessageType.Publish:
+                        break;
+                }
             }
         }
     }
@@ -73,6 +86,7 @@ public class MessageServer
         _listener.Start(64);
 
         // TODO: move to a event based method
+        // TODO: add a task for each client (?)
         while (!_cts.IsCancellationRequested)
         {
             Socket client = await _listener.AcceptSocketAsync(_cts.Token);
