@@ -62,14 +62,13 @@ internal class MessageServerClient
 
     private void ReceiveMessage(SocketAsyncEventArgs e)
     {
-        if (e.BytesTransferred == 0 && e.SocketError == SocketError.Success)
+        if (e is { BytesTransferred: 0, SocketError: SocketError.Success })
         {
             if (_client.Connected)
                 _client.Shutdown(SocketShutdown.Both);
             return;
         }
 
-        Console.WriteLine($"received: {e.BytesTransferred} bytes");
         if (e.LastOperation == SocketAsyncOperation.Receive)
         {
             Memory<byte> buffer = _memoryOwner.Memory;

@@ -28,8 +28,8 @@ public class MessageServer
         if (_listenerTask != null)
             throw new InvalidOperationException("server already running");
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _listenerTask = StartListenerTask(options);
         _senderTask = StartSenderTask(options, cancellationToken);
+        _listenerTask = StartListenerTask(options);
     }
 
     private async Task StartSenderTask(MessageServerOptions options, CancellationToken cancellationToken)
@@ -78,24 +78,27 @@ public class MessageServer
         }
     }
 
-    private async Task StartListenerTask(MessageServerOptions options)
+    private Task StartListenerTask(MessageServerOptions options)
     {
         if (_cts is null) throw new InvalidOperationException("cancellation token not created");
 
         _listener = new TcpListener(IPAddress.Any, options.Port);
         _listener.Start(64);
 
-        // TODO: move to a event based method
-        // TODO: add a task for each client (?)
-        while (!_cts.IsCancellationRequested)
+        return Task.Run(async () =>
         {
-            Socket client = await _listener.AcceptSocketAsync(_cts.Token);
+            // TODO: move to a event based method
+            // TODO: add a task for each client (?)
+            while (!_cts.IsCancellationRequested)
+            {
+                Socket client = await _listener.AcceptSocketAsync(_cts.Token);
 
-            var clientKey = Guid.NewGuid();
-            var messageServerClient = new MessageServerClient(clientKey, client, _messageChannel, _cts.Token);
+                var clientKey = Guid.NewGuid();
+                var messageServerClient = new MessageServerClient(clientKey, client, _messageChannel, _cts.Token);
+                _clients.TryAdd(clientKey, messageServerClient);
 
-            _clients.TryAdd(clientKey, messageServerClient);
-            messageServerClient.ReceiveMessageLoop();
-        }
+                messageServerClient.ReceiveMessageLoop();
+            }
+        });
     }
 }
