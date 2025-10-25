@@ -7,6 +7,8 @@
         <Nullable>enable</Nullable>
         <RootNamespace>Broker.Server</RootNamespace>
         <LangVersion>default</LangVersion>
+        <PublishSingleFile>True</PublishSingleFile>
+        <PublishAot>True</PublishAot>
     </PropertyGroup>
 
     <ItemGroup>
