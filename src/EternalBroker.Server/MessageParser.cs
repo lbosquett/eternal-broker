@@ -35,21 +35,20 @@ public class MessageParser
         }
 
         // todo: check message version
-        // type | length | topic | payload
+        // type | length | payload
         var messageType = (MessageType)BitConverter.ToInt32(buffer.Span.Slice(0, 4));
         int messageLength = BitConverter.ToInt32(buffer.Span.Slice(4, 4));
-        int topicCode = BitConverter.ToInt32(buffer.Span.Slice(8, 4));
 
         // we don't have enough data yet
         // 12 = version + topic + length 
-        if (messageLength + 12 > frame.Length)
+        if (messageLength + 8 > frame.Length)
         {
             buffer = buffer.Slice(endPosition);
             message = null;
             return false;
         }
 
-        message = new ProtocolMessage(clientKey, messageType, topicCode, frame.Slice(12, messageLength));
+        message = new ProtocolMessage(clientKey, messageType, frame.Slice(8, messageLength));
         StartMessagePosition = StartMessagePosition + messageLength + 8;
         _currentFrameLength = 0;
         return true;

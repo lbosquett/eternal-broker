@@ -43,9 +43,9 @@ public class MessageServer
                 switch (message.MessageType)
                 {
                     case MessageType.Ping:
-                        if (_clients.TryGetValue(message.Sender, out var client))
+                        if (_clients.TryGetValue(message.Sender, out MessageServerClient? client))
                         {
-                            var pong = new ProtocolMessage(message.Sender, MessageType.Ping, 0,
+                            var pong = new ProtocolMessage(message.Sender, MessageType.Ping,
                                 ReadOnlyMemory<byte>.Empty);
                             await client.SendMessageAsync(pong);
                         }

@@ -19,13 +19,13 @@ public class CommunicationTests
         NetworkStream stream = client.GetStream();
 
         MessageSerializer serializer = new MessageSerializer();
-        ReadOnlyMemory<byte> serializedMessage = serializer.Serialize(new ProtocolMessage(Guid.NewGuid(), MessageType.Ping, 0, ReadOnlyMemory<byte>.Empty));
+        ReadOnlyMemory<byte> serializedMessage = serializer.Serialize(new ProtocolMessage(Guid.NewGuid(), MessageType.Ping, ReadOnlyMemory<byte>.Empty));
 
         // send ping
         stream.Write(serializedMessage.Span);
 
         // wait for pong
-        byte[] received = new byte[12];
+        byte[] received = new byte[8];
         await stream.FlushAsync();
         int read = stream.Read(received, 0, received.Length);
 

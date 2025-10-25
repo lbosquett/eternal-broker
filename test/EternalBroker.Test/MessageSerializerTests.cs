@@ -12,7 +12,7 @@ public class MessageSerializerTests
         MessageSerializer serializer = new MessageSerializer();
 
         // act
-        ReadOnlyMemory<byte> result = serializer.Serialize(new ProtocolMessage(Guid.Empty, MessageType.Ping, 0, ReadOnlyMemory<byte>.Empty));
+        ReadOnlyMemory<byte> result = serializer.Serialize(new ProtocolMessage(Guid.Empty, MessageType.Ping, ReadOnlyMemory<byte>.Empty));
 
         // assert
         Assert.False(result.IsEmpty);
