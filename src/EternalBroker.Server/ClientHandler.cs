@@ -5,7 +5,7 @@ using Broker.Protocol;
 
 namespace Broker.Server;
 
-internal class MessageServerClient
+internal class ClientHandler
 {
     private readonly Guid _clientKey;
     private readonly Socket _client;
@@ -13,11 +13,11 @@ internal class MessageServerClient
     private readonly SocketAsyncEventArgs _receiveEventArgs;
     private readonly MessageParser _parser = new();
     private readonly MessageSerializer _serializer = new();
-    private readonly ManualResetEventSlim _canReceive = new ManualResetEventSlim();
+    private readonly ManualResetEventSlim _canReceive = new();
     private readonly Channel<ProtocolMessage> _messageChannel;
     private readonly CancellationToken _cancellationToken;
 
-    internal MessageServerClient(Guid clientKey, Socket client,
+    internal ClientHandler(Guid clientKey, Socket client,
         Channel<ProtocolMessage> messageChannel,
         CancellationToken cancellationToken)
     {

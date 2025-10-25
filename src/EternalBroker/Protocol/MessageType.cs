@@ -4,5 +4,6 @@ public enum MessageType
 {
     None = 0,
     Ping,
-    Publish
+    Publish,
+    Api,
 }

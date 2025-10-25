@@ -9,7 +9,7 @@ namespace Broker.Server;
 public class MessageServer
 {
     private Task? _listenerTask;
-    private Task? _senderTask;
+    private Task? _messageConsumerTask;
 
     private CancellationTokenSource? _cts;
 
@@ -18,8 +18,9 @@ public class MessageServer
     // todo: add capacity to config
     private readonly Channel<ProtocolMessage> _messageChannel = Channel.CreateBounded<ProtocolMessage>(32);
 
-    private readonly ConcurrentDictionary<Guid, MessageServerClient> _clients = new();
+    private readonly ConcurrentDictionary<Guid, ClientHandler> _clients = new();
     private readonly ConcurrentDictionary<int, string> _topics = new();
+    private readonly ApiHandler _apiHandler = new();
 
     public Task? ListenerTask => _listenerTask;
 
@@ -28,11 +29,11 @@ public class MessageServer
         if (_listenerTask != null)
             throw new InvalidOperationException("server already running");
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _senderTask = StartSenderTask(options, cancellationToken);
+        _messageConsumerTask = StartMessageConsumerTask(options, cancellationToken);
         _listenerTask = StartListenerTask(options);
     }
 
-    private async Task StartSenderTask(MessageServerOptions options, CancellationToken cancellationToken)
+    private async Task StartMessageConsumerTask(MessageServerOptions options, CancellationToken cancellationToken)
     {
         if (_cts is null) throw new InvalidOperationException("cancellation token not created");
         while (!_cts.IsCancellationRequested)
@@ -40,10 +41,11 @@ public class MessageServer
             await foreach (ProtocolMessage message in _messageChannel.Reader.ReadAllAsync(_cts.Token))
             {
                 // todo: implement
+                // todo: handle exceptions, send back to client?
                 switch (message.MessageType)
                 {
                     case MessageType.Ping:
-                        if (_clients.TryGetValue(message.Sender, out MessageServerClient? client))
+                        if (_clients.TryGetValue(message.Sender, out ClientHandler? client))
                         {
                             var pong = new ProtocolMessage(message.Sender, MessageType.Ping,
                                 ReadOnlyMemory<byte>.Empty);
@@ -51,6 +53,9 @@ public class MessageServer
                         }
                         break;
                     case MessageType.Publish:
+                        break;
+                    case MessageType.Api:
+                        _apiHandler.Handle(message);
                         break;
                 }
             }
@@ -61,7 +66,7 @@ public class MessageServer
     {
         if (_cts is null
             || _listenerTask is null
-            || _senderTask is null)
+            || _messageConsumerTask is null)
             throw new InvalidOperationException("server already stopping or not started");
 
         await _cts.CancelAsync();
@@ -70,7 +75,7 @@ public class MessageServer
         try
         {
             await _listenerTask;
-            await _senderTask;
+            await _messageConsumerTask;
         }
         catch (OperationCanceledException)
         {
@@ -94,7 +99,7 @@ public class MessageServer
                 Socket client = await _listener.AcceptSocketAsync(_cts.Token);
 
                 var clientKey = Guid.NewGuid();
-                var messageServerClient = new MessageServerClient(clientKey, client, _messageChannel, _cts.Token);
+                var messageServerClient = new ClientHandler(clientKey, client, _messageChannel, _cts.Token);
                 _clients.TryAdd(clientKey, messageServerClient);
 
                 messageServerClient.ReceiveMessageLoop();
