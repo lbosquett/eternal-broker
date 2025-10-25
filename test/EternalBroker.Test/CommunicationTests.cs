@@ -12,10 +12,10 @@ public class CommunicationTests
     public async Task SendPingMessage()
     {
         MessageServer server = new MessageServer();
-        server.Run(new MessageServerOptions() { Port = 7800 }, CancellationToken.None);
+        server.Run(new MessageServerOptions() { Port = Constants.TestPort }, CancellationToken.None);
 
         var client = new TcpClient();
-        await client.ConnectAsync(IPAddress.Loopback, 7800);
+        await client.ConnectAsync(IPAddress.Loopback, Constants.TestPort);
         NetworkStream stream = client.GetStream();
 
         MessageSerializer serializer = new MessageSerializer();
