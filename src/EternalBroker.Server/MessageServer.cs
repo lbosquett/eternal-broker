@@ -22,6 +22,9 @@ public class MessageServer
     private readonly ConcurrentDictionary<int, string> _topics = new();
     private readonly ApiHandler _apiHandler = new();
 
+    // hooks
+    public event Action<ProtocolMessage>? MessageReceived;
+
     public Task? ListenerTask => _listenerTask;
 
     public void Run(MessageServerOptions options, CancellationToken cancellationToken)
@@ -55,9 +58,13 @@ public class MessageServer
                     case MessageType.Publish:
                         break;
                     case MessageType.Api:
-                        _apiHandler.Handle(message);
+                        _clients.TryGetValue(message.Sender, out ClientHandler? apiClientHandler);
+                        if (apiClientHandler is null) throw new InvalidOperationException();
+                        await _apiHandler.Handle(message, apiClientHandler);
                         break;
                 }
+
+                MessageReceived?.Invoke(message);
             }
         }
     }

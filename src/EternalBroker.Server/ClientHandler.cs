@@ -73,7 +73,8 @@ internal class ClientHandler
         {
             Memory<byte> buffer = _memoryOwner.Memory;
             int consumed = 0;
-            while (_parser.TryParseMessage(ref buffer, _clientKey, e.BytesTransferred, out ProtocolMessage? message))
+            while (_parser.TryParseMessage(ref buffer, _clientKey, e.BytesTransferred,
+                       out ProtocolMessage? message))
             {
                 if (message == null) throw new InvalidOperationException("unexpected message to be null");
 

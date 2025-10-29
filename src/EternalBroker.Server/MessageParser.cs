@@ -13,7 +13,7 @@ public class MessageParser
         int transferred,
         out ProtocolMessage? message)
     {
-        _currentFrameLength += transferred;
+        _currentFrameLength += transferred - StartMessagePosition;
         Memory<byte> frame = buffer.Slice(StartMessagePosition, _currentFrameLength);
         int endPosition = StartMessagePosition + _currentFrameLength;
 
