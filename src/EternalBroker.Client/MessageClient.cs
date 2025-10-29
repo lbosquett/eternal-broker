@@ -12,11 +12,11 @@ public class MessageClient
 {
     private TcpClient? _tcpClient;
     private readonly MessageSerializer _messageSerializer = new();
-    private readonly IPAddress _address;
-    private readonly int _port;
+    private IPAddress? _address;
+    private int _port;
     private Task? _receiverTask;
     private Task? _senderTask;
-    private CancellationTokenSource _senderReceiverCombinedToken;
+    private CancellationTokenSource? _senderReceiverCombinedToken;
     private Channel<ProtocolMessage>? _receiverMessageChannel;
     private Channel<ProtocolMessage>? _senderMessageChannel;
 
@@ -30,6 +30,8 @@ public class MessageClient
         }
 
         _tcpClient = new TcpClient();
+        _address = address;
+        _port = port;
         await _tcpClient.ConnectAsync(_address, _port, cancellationToken);
 
         // TODO: bounded?
