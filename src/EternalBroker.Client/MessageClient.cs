@@ -66,7 +66,7 @@ public class MessageClient
         });
         byte[] serializedApiRequest =
             JsonSerializer.SerializeToUtf8Bytes(request, JsonApiMessageContext.Default.JsonApiMessageRequest);
-        ProtocolMessage message = new(Guid.Empty, MessageType.Api, new ReadOnlyMemory<byte>(serializedApiRequest));
+        ProtocolMessage message = new(MessageType.Api, new ReadOnlyMemory<byte>(serializedApiRequest));
 
         // send
         await _senderMessageChannel.Writer.WriteAsync(message, cancellationToken);
@@ -77,7 +77,8 @@ public class MessageClient
 
     public async Task CloseConnectionAsync()
     {
-        if (_tcpClient is null) throw new InvalidOperationException();
+        if (_tcpClient is null
+            || _senderReceiverCombinedToken is null) throw new InvalidOperationException();
 
         if (_senderTask != null) await _senderTask;
         if (_receiverTask != null) await _receiverTask;

@@ -14,7 +14,7 @@ public class ApiTests
     [Fact]
     public async Task CreateTopic()
     {
-        ProtocolMessage? received = null;
+        ReceivedProtocolMessage? received = null;
         MessageServer server = new();
         server.MessageReceived += message =>
         {

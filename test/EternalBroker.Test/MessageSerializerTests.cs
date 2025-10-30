@@ -12,11 +12,11 @@ public class MessageSerializerTests
         MessageSerializer serializer = new MessageSerializer();
 
         // act
-        ReadOnlyMemory<byte> result = serializer.Serialize(new ProtocolMessage(Guid.Empty, MessageType.Ping, ReadOnlyMemory<byte>.Empty));
+        ReadOnlyMemory<byte> result = serializer.Serialize(new ProtocolMessage(MessageType.Ping, ReadOnlyMemory<byte>.Empty));
 
         // assert
         Assert.False(result.IsEmpty);
-        Assert.True(result is { Length: 12 });
+        Assert.True(result is { Length: 8 });
 
         int messageTypeResult = BitConverter.ToInt32(result.Span.ToArray(), 0);
         int messageLengthResult = BitConverter.ToInt32(result.Span.ToArray(), 4);

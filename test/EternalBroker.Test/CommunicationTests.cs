@@ -19,7 +19,7 @@ public class CommunicationTests
         NetworkStream stream = client.GetStream();
 
         MessageSerializer serializer = new MessageSerializer();
-        ReadOnlyMemory<byte> serializedMessage = serializer.Serialize(new ProtocolMessage(Guid.NewGuid(), MessageType.Ping, ReadOnlyMemory<byte>.Empty));
+        ReadOnlyMemory<byte> serializedMessage = serializer.Serialize(new ProtocolMessage(MessageType.Ping, ReadOnlyMemory<byte>.Empty));
 
         // send ping
         stream.Write(serializedMessage.Span);

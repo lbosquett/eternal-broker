@@ -11,7 +11,7 @@ public class MessageParser
     public bool TryParseMessage(ref Memory<byte> buffer,
         Guid clientKey,
         int transferred,
-        out ProtocolMessage? message)
+        out ReceivedProtocolMessage? message)
     {
         _currentFrameLength += transferred - StartMessagePosition;
         Memory<byte> frame = buffer.Slice(StartMessagePosition, _currentFrameLength);
@@ -48,7 +48,7 @@ public class MessageParser
             return false;
         }
 
-        message = new ProtocolMessage(clientKey, messageType, frame.Slice(8, messageLength));
+        message = new ReceivedProtocolMessage(clientKey, messageType, frame.Slice(8, messageLength));
         StartMessagePosition = StartMessagePosition + messageLength + 8;
         _currentFrameLength = 0;
         return true;

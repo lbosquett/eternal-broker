@@ -8,21 +8,21 @@ namespace Broker.Server;
 
 internal class ApiHandler
 {
-    private TopicController _topicController = new();
+    private readonly TopicController _topicController = new();
 
     private ProtocolMessage BuildFromResponse(JsonApiMessageResponse response)
     {
         byte[] serializedResponse =
             JsonSerializer.SerializeToUtf8Bytes(response, JsonApiMessageContext.Default.JsonApiMessageResponse);
-        return new ProtocolMessage(Guid.Empty, MessageType.Api, new ReadOnlyMemory<byte>(serializedResponse));
+        return new ProtocolMessage(MessageType.Api, new ReadOnlyMemory<byte>(serializedResponse));
     }
 
-    internal async Task Handle(ProtocolMessage protocolMessage, ClientHandler clientHandler)
+    internal async Task Handle(ReceivedProtocolMessage receivedProtocolMessage, ClientHandler clientHandler)
     {
-        if (protocolMessage.MessageType != MessageType.Api) throw new InvalidOperationException();
+        if (receivedProtocolMessage.MessageType != MessageType.Api) throw new InvalidOperationException();
 
         JsonApiMessageRequest? jsonApiMessage =
-            JsonSerializer.Deserialize<JsonApiMessageRequest>(protocolMessage.Payload.Span,
+            JsonSerializer.Deserialize<JsonApiMessageRequest>(receivedProtocolMessage.Payload.Span,
                 JsonApiMessageContext.Default.JsonApiMessageRequest);
         if (jsonApiMessage == null) throw new InvalidOperationException();
 

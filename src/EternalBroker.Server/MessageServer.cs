@@ -16,14 +16,13 @@ public class MessageServer
     private TcpListener? _listener;
 
     // todo: add capacity to config
-    private readonly Channel<ProtocolMessage> _messageChannel = Channel.CreateBounded<ProtocolMessage>(32);
+    private readonly Channel<ReceivedProtocolMessage> _messageChannel = Channel.CreateBounded<ReceivedProtocolMessage>(32);
 
     private readonly ConcurrentDictionary<Guid, ClientHandler> _clients = new();
-    private readonly ConcurrentDictionary<int, string> _topics = new();
     private readonly ApiHandler _apiHandler = new();
 
     // hooks
-    public event Action<ProtocolMessage>? MessageReceived;
+    public event Action<ReceivedProtocolMessage>? MessageReceived;
 
     public Task? ListenerTask => _listenerTask;
 
@@ -41,7 +40,7 @@ public class MessageServer
         if (_cts is null) throw new InvalidOperationException("cancellation token not created");
         while (!_cts.IsCancellationRequested)
         {
-            await foreach (ProtocolMessage message in _messageChannel.Reader.ReadAllAsync(_cts.Token))
+            await foreach (ReceivedProtocolMessage message in _messageChannel.Reader.ReadAllAsync(_cts.Token))
             {
                 // todo: implement
                 // todo: handle exceptions, send back to client?
@@ -50,8 +49,7 @@ public class MessageServer
                     case MessageType.Ping:
                         if (_clients.TryGetValue(message.Sender, out ClientHandler? client))
                         {
-                            var pong = new ProtocolMessage(message.Sender, MessageType.Ping,
-                                ReadOnlyMemory<byte>.Empty);
+                            var pong = new ProtocolMessage(MessageType.Ping, ReadOnlyMemory<byte>.Empty);
                             await client.SendMessageAsync(pong);
                         }
                         break;

@@ -14,11 +14,11 @@ internal class ClientHandler
     private readonly MessageParser _parser = new();
     private readonly MessageSerializer _serializer = new();
     private readonly ManualResetEventSlim _canReceive = new();
-    private readonly Channel<ProtocolMessage> _messageChannel;
+    private readonly Channel<ReceivedProtocolMessage> _messageChannel;
     private readonly CancellationToken _cancellationToken;
 
     internal ClientHandler(Guid clientKey, Socket client,
-        Channel<ProtocolMessage> messageChannel,
+        Channel<ReceivedProtocolMessage> messageChannel,
         CancellationToken cancellationToken)
     {
         _clientKey = clientKey;
@@ -74,7 +74,7 @@ internal class ClientHandler
             Memory<byte> buffer = _memoryOwner.Memory;
             int consumed = 0;
             while (_parser.TryParseMessage(ref buffer, _clientKey, e.BytesTransferred,
-                       out ProtocolMessage? message))
+                       out ReceivedProtocolMessage? message))
             {
                 if (message == null) throw new InvalidOperationException("unexpected message to be null");
 
@@ -106,8 +106,8 @@ internal class ClientHandler
         _canReceive.Set();
     }
 
-    public async Task SendMessageAsync(ProtocolMessage pong)
+    public async Task SendMessageAsync(ProtocolMessage message)
     {
-        await _client.SendAsync(_serializer.Serialize(pong), _cancellationToken);
+        await _client.SendAsync(_serializer.Serialize(message), _cancellationToken);
     }
 }
