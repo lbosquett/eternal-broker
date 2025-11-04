@@ -16,13 +16,13 @@ public class MessageServer
     private TcpListener? _listener;
 
     // todo: add capacity to config
-    private readonly Channel<ReceivedProtocolMessage> _messageChannel = Channel.CreateBounded<ReceivedProtocolMessage>(32);
+    private readonly Channel<ProtocolMessage> _messageChannel = Channel.CreateBounded<ProtocolMessage>(32);
 
     private readonly ConcurrentDictionary<Guid, ClientHandler> _clients = new();
     private readonly ApiHandler _apiHandler = new();
 
     // hooks
-    public event Action<ReceivedProtocolMessage>? MessageReceived;
+    public event Action<ProtocolMessage>? MessageReceived;
 
     public Task? ListenerTask => _listenerTask;
 
@@ -40,26 +40,19 @@ public class MessageServer
         if (_cts is null) throw new InvalidOperationException("cancellation token not created");
         while (!_cts.IsCancellationRequested)
         {
-            await foreach (ReceivedProtocolMessage message in _messageChannel.Reader.ReadAllAsync(_cts.Token))
+            await foreach (ProtocolMessage message in _messageChannel.Reader.ReadAllAsync(_cts.Token))
             {
                 // todo: implement
                 // todo: handle exceptions, send back to client?
                 switch (message.MessageType)
                 {
-                    case MessageType.Ping:
-                        if (_clients.TryGetValue(message.Sender, out ClientHandler? client))
-                        {
-                            var pong = new ProtocolMessage(MessageType.Ping, ReadOnlyMemory<byte>.Empty);
-                            await client.SendMessageAsync(pong);
-                        }
-                        break;
-                    case MessageType.Publish:
-                        break;
-                    case MessageType.Api:
-                        _clients.TryGetValue(message.Sender, out ClientHandler? apiClientHandler);
-                        if (apiClientHandler is null) throw new InvalidOperationException();
-                        await _apiHandler.Handle(message, apiClientHandler);
-                        break;
+                    // case MessageType.Publish:
+                    //     break;
+                    // case MessageType.Api:
+                    //     _clients.TryGetValue(message.Sender, out ClientHandler? apiClientHandler);
+                    //     if (apiClientHandler is null) throw new InvalidOperationException();
+                    //     await _apiHandler.Handle(message, apiClientHandler);
+                    //     break;
                 }
 
                 MessageReceived?.Invoke(message);

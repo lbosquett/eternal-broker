@@ -1,45 +1,40 @@
 ﻿using System.Buffers;
 using System.Net.Sockets;
-using System.Threading.Channels;
-using Broker.Protocol;
+using Broker.Server;
 
-namespace Broker.Server;
+namespace Broker.Protocol;
 
-internal class ClientHandler
+public class ApplicationMessageListener
 {
-    private readonly Guid _clientKey;
-    private readonly Socket _client;
-    private readonly IMemoryOwner<byte> _memoryOwner;
-    private readonly SocketAsyncEventArgs _receiveEventArgs;
-    private readonly MessageParser _parser = new();
-    private readonly MessageSerializer _serializer = new();
-    private readonly ManualResetEventSlim _canReceive = new();
-    private readonly Channel<ProtocolMessage> _messageChannel;
-    private readonly CancellationToken _cancellationToken;
+    private readonly MessageParser _messageParser = new();
 
-    internal ClientHandler(Guid clientKey, Socket client,
-        Channel<ProtocolMessage> messageChannel,
-        CancellationToken cancellationToken)
+    private readonly Socket _client;
+    private readonly IMessageListener _messageListener;
+    private readonly IMemoryOwner<byte> _memoryOwner;
+    private readonly ManualResetEventSlim _canReceive = new();
+    private readonly CancellationTokenSource _cts = new();
+    private readonly SocketAsyncEventArgs _receiveEventArgs;
+
+    public ApplicationMessageListener(Socket client, IMessageListener messageListener)
     {
-        _clientKey = clientKey;
-        _client = client;
-        _memoryOwner = MemoryPool<byte>.Shared.Rent(8192);
-        _messageChannel = messageChannel;
-        _cancellationToken = cancellationToken;
+        _memoryOwner = MemoryPool<byte>.Shared.Rent(1024);
 
         _receiveEventArgs = new SocketAsyncEventArgs();
         _receiveEventArgs.SetBuffer(_memoryOwner.Memory);
         _receiveEventArgs.Completed += SocketCompletedReceiveEvent;
+
+        _client = client;
+        _messageListener = messageListener;
     }
 
-    public void ReceiveMessageLoop()
+    public void ReceiveLoop()
     {
         _canReceive.Set();
 
-        while (!_cancellationToken.IsCancellationRequested
+        while (!_cts.IsCancellationRequested
                && _client.Connected)
         {
-            _canReceive.Wait(_cancellationToken);
+            _canReceive.Wait(_cts.Token);
 
             bool pending = _client.ReceiveAsync(_receiveEventArgs);
             if (pending)
@@ -73,13 +68,13 @@ internal class ClientHandler
         {
             Memory<byte> buffer = _memoryOwner.Memory;
             int consumed = 0;
-            while (_parser.TryParseMessage(ref buffer, e.BytesTransferred,
+            while (_messageParser.TryParseMessage(ref buffer, e.BytesTransferred,
                        out ProtocolMessage? message))
             {
                 if (message == null) throw new InvalidOperationException("unexpected message to be null");
 
                 consumed += message.Payload.Length + 8;
-                bool messageSent = _messageChannel.Writer.TryWrite(message);
+                bool messageSent = _messageListener.TryReceiveMessage(message);
 
                 if (!messageSent)
                 {
@@ -95,19 +90,14 @@ internal class ClientHandler
             if (buffer.Length < 1024)
             {
                 int toCopy = e.BytesTransferred - consumed;
-                _memoryOwner.Memory.Slice(_parser.StartMessagePosition, toCopy)
+                _memoryOwner.Memory.Slice(_messageParser.StartMessagePosition, toCopy)
                     .CopyTo(_memoryOwner.Memory);
 
-                buffer = _memoryOwner.Memory.Slice(_parser.StartMessagePosition);
+                buffer = _memoryOwner.Memory.Slice(_messageParser.StartMessagePosition);
             }
 
             e.SetBuffer(buffer);
         }
         _canReceive.Set();
-    }
-
-    public async Task SendMessageAsync(ProtocolMessage message)
-    {
-        await _client.SendAsync(_serializer.Serialize(message), _cancellationToken);
     }
 }

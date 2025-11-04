@@ -18,7 +18,7 @@ public class ApiTests
         MessageServer server = new();
         server.MessageReceived += message =>
         {
-            received = message;
+            // received = message;
         };
         server.Run(new MessageServerOptions() { Port = Constants.TestPort }, CancellationToken.None);
 
