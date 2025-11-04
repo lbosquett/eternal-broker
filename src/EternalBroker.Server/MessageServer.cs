@@ -97,10 +97,11 @@ public class MessageServer
                 Socket client = await _listener.AcceptSocketAsync(_cts.Token);
 
                 var clientKey = Guid.NewGuid();
-                var messageServerClient = new ClientHandler(clientKey, client, _messageChannel, _cts.Token);
+                var serverApplicationMessageListener = new ServerApplicationMessageListener(clientKey, _messageChannel);
+                var messageServerClient = new ClientHandler(client, serverApplicationMessageListener);
                 _clients.TryAdd(clientKey, messageServerClient);
 
-                messageServerClient.ReceiveMessageLoop();
+                messageServerClient.Listen(_cts.Token);
             }
         });
     }

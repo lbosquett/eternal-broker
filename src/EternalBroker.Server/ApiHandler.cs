@@ -17,7 +17,7 @@ internal class ApiHandler
         return new ProtocolMessage(MessageType.Api, new ReadOnlyMemory<byte>(serializedResponse));
     }
 
-    internal async Task Handle(ReceivedProtocolMessage receivedProtocolMessage, ClientHandler clientHandler)
+    internal async Task Handle(ReceivedProtocolMessage receivedProtocolMessage, ClientHandler clientHandler, CancellationToken cancellationToken)
     {
         if (receivedProtocolMessage.MessageType != MessageType.Api) throw new InvalidOperationException();
 
@@ -32,7 +32,7 @@ internal class ApiHandler
             {
                 IEnumerable<Topic> topics = _topicController.ListTopics();
                 var response = new JsonApiMessageResponse(true, topics);
-                await clientHandler.SendMessageAsync(BuildFromResponse(response));
+                await clientHandler.SendMessageAsync(BuildFromResponse(response), cancellationToken);
             }
                 break;
             case "/topics/create":
@@ -41,7 +41,7 @@ internal class ApiHandler
                 _topicController.CreateTopic(topicName);
 
                 var response = new JsonApiMessageResponse(true, null);
-                await clientHandler.SendMessageAsync(BuildFromResponse(response));
+                await clientHandler.SendMessageAsync(BuildFromResponse(response), cancellationToken);
             }
                 break;
         }
