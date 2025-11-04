@@ -12,6 +12,8 @@ public class ApplicationMessageListener(Socket client, IMessageListener messageL
 
     public async Task ReceiveLoop(CancellationToken cancellationToken)
     {
+        // TODO: move back to SocketReceiveAsyncArgs
+
         Memory<byte> buffer = _memoryOwner.Memory;
         while (!cancellationToken.IsCancellationRequested
                && client.Connected)
