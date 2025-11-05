@@ -16,10 +16,10 @@ public class ApiTests
     {
         ReceivedProtocolMessage? received = null;
         MessageServer server = new();
-        server.MessageReceived += message =>
-        {
-            // received = message;
-        };
+        // server.MessageReceived += message =>
+        // {
+        //     // received = message;
+        // };
         server.Run(new MessageServerOptions() { Port = Constants.TestPort }, CancellationToken.None);
 
         MessageClient client = new();

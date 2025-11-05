@@ -1,12 +1,20 @@
-﻿using System.Threading.Channels;
-using Broker.Protocol;
+﻿using Broker.Protocol;
 
 namespace Broker.Server;
 
-public class ServerApplicationMessageListener(Guid clientKey, Channel<ProtocolMessage> channel) : IMessageListener
+internal class ServerApplicationMessageListener(ClientContext clientContext) : IMessageListener
 {
-    public bool TryReceiveMessage(ProtocolMessage message)
+    private readonly ApiHandler _apiHandler = new();
+
+    public async Task ReceiveMessageAsync(ProtocolMessage message, CancellationToken cancellationToken)
     {
-        return channel.Writer.TryWrite(message);
+        switch (message.MessageType)
+        {
+            case MessageType.Api:
+                await _apiHandler.Handle(message, clientContext, cancellationToken);
+                break;
+            case MessageType.Publish:
+                throw new NotImplementedException();
+        }
     }
 }

@@ -9,9 +9,9 @@ internal class ClientHandler
     private readonly ApplicationMessageSender _applicationMessageSender;
     private Task? _listenerTask;
 
-    internal ClientHandler(Socket client, IMessageListener messageListener)
+    internal ClientHandler(Socket client, IMessageListener listener)
     {
-        _applicationMessageListener = new ApplicationMessageListener(client, messageListener);
+        _applicationMessageListener = new ApplicationMessageListener(client, listener);
         _applicationMessageSender = new ApplicationMessageSender(client);
     }
 
@@ -24,6 +24,7 @@ internal class ClientHandler
 
     internal async Task SendMessageAsync(ProtocolMessage message, CancellationToken cancellationToken)
     {
+        // TODO: add channels to avoid blocking messages
         await _applicationMessageSender.SendMessageAsync(message, cancellationToken);
     }
 

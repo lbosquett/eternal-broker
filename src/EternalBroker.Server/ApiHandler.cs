@@ -17,12 +17,13 @@ internal class ApiHandler
         return new ProtocolMessage(MessageType.Api, new ReadOnlyMemory<byte>(serializedResponse));
     }
 
-    internal async Task Handle(ReceivedProtocolMessage receivedProtocolMessage, ClientHandler clientHandler, CancellationToken cancellationToken)
+    internal async Task Handle(ProtocolMessage protocolMessage, ClientContext clientContext,
+        CancellationToken cancellationToken)
     {
-        if (receivedProtocolMessage.MessageType != MessageType.Api) throw new InvalidOperationException();
+        if (protocolMessage.MessageType != MessageType.Api) throw new InvalidOperationException();
 
         JsonApiMessageRequest? jsonApiMessage =
-            JsonSerializer.Deserialize<JsonApiMessageRequest>(receivedProtocolMessage.Payload.Span,
+            JsonSerializer.Deserialize<JsonApiMessageRequest>(protocolMessage.Payload.Span,
                 JsonApiMessageContext.Default.JsonApiMessageRequest);
         if (jsonApiMessage == null) throw new InvalidOperationException();
 
@@ -32,16 +33,21 @@ internal class ApiHandler
             {
                 IEnumerable<Topic> topics = _topicController.ListTopics();
                 var response = new JsonApiMessageResponse(true, topics);
-                await clientHandler.SendMessageAsync(BuildFromResponse(response), cancellationToken);
+                await clientContext.Server.MessageChannel.Writer.WriteAsync(
+                    new SendMessageRequest(clientContext.ClientHandler, BuildFromResponse(response)),
+                    cancellationToken);
             }
                 break;
             case "/topics/create":
             {
-                string topicName = ((JsonElement)jsonApiMessage.Parameters["topic"]).GetString() ?? throw new InvalidOperationException();
+                string topicName = ((JsonElement)jsonApiMessage.Parameters["topic"]).GetString() ??
+                                   throw new InvalidOperationException();
                 _topicController.CreateTopic(topicName);
 
                 var response = new JsonApiMessageResponse(true, null);
-                await clientHandler.SendMessageAsync(BuildFromResponse(response), cancellationToken);
+                await clientContext.Server.MessageChannel.Writer.WriteAsync(
+                    new SendMessageRequest(clientContext.ClientHandler, BuildFromResponse(response)),
+                    cancellationToken);
             }
                 break;
         }

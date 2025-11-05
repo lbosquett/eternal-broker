@@ -34,16 +34,7 @@ public class ApplicationMessageListener(Socket client, IMessageListener messageL
                 if (message == null) throw new InvalidOperationException("unexpected message to be null");
 
                 consumed += message.Payload.Length + 8;
-                bool messageSent = messageListener.TryReceiveMessage(message);
-
-                if (!messageSent)
-                {
-                    // todo: handle cases when server is handling messages slowly
-                    // - signal server to process messages?
-                    // - discard message?
-                    // - buffering?
-                    throw new NotImplementedException();
-                }
+                await messageListener.ReceiveMessageAsync(message, cancellationToken);
             }
 
             // compact

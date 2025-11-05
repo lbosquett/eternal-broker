@@ -2,5 +2,5 @@
 
 public interface IMessageListener
 {
-    public bool TryReceiveMessage(ProtocolMessage message);
+    public Task ReceiveMessageAsync(ProtocolMessage message, CancellationToken cancellationToken);
 }
